@@ -34,7 +34,9 @@ class MessageManager(object):
         if key == "":
             self.hmac = None
         else:
-            self.hmac = hmac.new(key=codecs.decode(key, "hex"),
+            # Although the key is a hex-string, jupyter uses
+            # it as a session key literally. Go figure..
+            self.hmac = hmac.new(key=key.encode("ascii"),
                                 digestmod=self._NAME_TO_SCHEME[sign_scheme])
         self.session = str(uuid.uuid4())
 
