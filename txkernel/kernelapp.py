@@ -62,25 +62,28 @@ class KernelApp(object):
         if cli_args.connection_file:
             connection_file =\
                 ConnectionFile.from_existing(cli_args.connection_file)
+            write_connection_file = False
         else:
             connection_file = ConnectionFile.generate()
+            write_connection_file = True
 
         self.kernel = kernel_cls(connection_file.connection_props,
                                  *extra_kernel_args,
                                  **extra_kernel_kwargs)
 
-        # Fix socket ports
-        props = connection_file.connection_props
-        props["shell_port"] = self._get_socket_port(self.kernel.shell_sock)
-        props["control_port"] = self._get_socket_port(self.kernel.ctrl_sock)
-        props["iopub_port"] = self._get_socket_port(self.kernel.iopub_sock)
-        props["stdin_port"] = self._get_socket_port(self.kernel.stdin_sock)
-        props["hb_port"] = self._get_socket_port(self.kernel.hb_sock)
+        if write_connection_file:
+            # Fix socket ports
+            props = connection_file.connection_props
+            props["shell_port"] = self._get_socket_port(self.kernel.shell_sock)
+            props["control_port"] = self._get_socket_port(self.kernel.ctrl_sock)
+            props["iopub_port"] = self._get_socket_port(self.kernel.iopub_sock)
+            props["stdin_port"] = self._get_socket_port(self.kernel.stdin_sock)
+            props["hb_port"] = self._get_socket_port(self.kernel.hb_sock)
 
-        connection_file_path = connection_file.write_file()
-        hint = """To connect another client to this kernel, use:
-    --existing {}""".format(path.basename(connection_file_path))
-        print(hint)
+            connection_file_path = connection_file.write_file()
+            hint = """To connect another client to this kernel, use:
+        --existing {}""".format(path.basename(connection_file_path))
+            print(hint)
     
     def run(self):
         return self.kernel.run()
