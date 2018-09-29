@@ -112,7 +112,8 @@ class KernelBase(object):
 
             self.send_update("status", {'execution_state': 'idle'})
         except Exception as e:
-            self.stop_deferred.errback(e)
+            self.log.failure("Uncought exception in message handler")
+            self.signal_stop()
 
     def do_kernel_info(self):
         return {
@@ -134,6 +135,13 @@ class KernelBase(object):
     def send_update(self, msg_type, content):
         msg = self.message_manager.build(msg_type, content)
         self.iopub_sock.publish(msg)
+    
+    def signal_stop(self):
+        # Multiple sources could request kernel shutdown
+        # because only one is sufficient, ignore all other
+        # attempts
+        if not self.stop_deferred.called:
+            self.stop_deferred.callback(None)
 
     @staticmethod
     def _endpoint(transport, addr, port,
