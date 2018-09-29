@@ -44,7 +44,7 @@ class KernelApp(object):
         parser = argparse.ArgumentParser()
         parser.add_argument('-c', '--connection-file',
                             help="Path to existing connection file")
-        parser.add_argument('-l', '--log-level', default="info", const="info",
+        parser.add_argument('-l', '--log-level', default="error", const="info",
                             nargs="?", choices=self._NAME_TO_LEVEL.keys(),
                             help="Show only certain logs")
         cli_args = parser.parse_args()

@@ -102,7 +102,7 @@ class KernelBase(object):
                 resp_type = "is_complete_reply"
                 content = yield self.do_is_complete(**msg['content'])
             else:
-                self.log.error("Unknown request type {req_type}",
+                self.log.warn("Unknown request type {req_type}",
                                req_type=msg_type)
                 defer.returnValue(None)
             
