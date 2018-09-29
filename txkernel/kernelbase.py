@@ -33,6 +33,8 @@ class KernelBase(object):
         self.zmq_factory = txzmq.ZmqFactory()
         self.zmq_factory.registerForShutdown()
         self.execution_count = 0
+        self.shutdown_bcast = None
+        self.stop_deferred = defer.Deferred()
         
         transport = self.connection_props["transport"]
         addr = self.connection_props["ip"]
@@ -69,11 +71,14 @@ class KernelBase(object):
         self.send_update("status", {'execution_state': 'starting'})
 
     def run(self):
-        self.stop_deferred = defer.Deferred()
         @defer.inlineCallbacks
         def do_init(reactor):
+            reactor.addSystemEventTrigger('before', 'startup', self.on_start)
+            reactor.addSystemEventTrigger('after', 'shutdown', self.on_stop)
             self.send_update("status", {'execution_state': 'idle'})
             val = yield self.stop_deferred
+            if self.shutdown_bcast:
+                self.iopub_sock.publish(self.shutdown_bcast)
             defer.returnValue(val)
 
         task.react(do_init)
@@ -101,6 +106,14 @@ class KernelBase(object):
             elif msg_type == 'is_complete_request':
                 resp_type = "is_complete_reply"
                 content = yield self.do_is_complete(**msg['content'])
+            elif msg_type == 'shutdown_request':
+                resp_type = 'shutdown_reply'
+
+                content = yield self.do_shutdown(**msg['content'])
+                self.shutdown_bcast =\
+                    self.message_manager.build('shutdown_reply', content,
+                                               msg['header'])
+                self.signal_stop()
             else:
                 self.log.warn("Unknown request type {req_type}",
                                req_type=msg_type)
@@ -111,7 +124,7 @@ class KernelBase(object):
             request_socket.sendMultipart(sender_id, msg_bin)
 
             self.send_update("status", {'execution_state': 'idle'})
-        except Exception as e:
+        except Exception:
             self.log.failure("Uncought exception in message handler")
             self.signal_stop()
 
@@ -132,6 +145,9 @@ class KernelBase(object):
     def do_is_complete(self, code):
         raise NotImplementedError
 
+    def do_shutdown(self, restart=False):
+        return {'restart': restart}
+
     def send_update(self, msg_type, content):
         msg = self.message_manager.build(msg_type, content)
         self.iopub_sock.publish(msg)
@@ -142,6 +158,12 @@ class KernelBase(object):
         # attempts
         if not self.stop_deferred.called:
             self.stop_deferred.callback(None)
+
+    def on_start(self):
+        pass
+
+    def on_stop(self):
+        print("test")
 
     @staticmethod
     def _endpoint(transport, addr, port,
