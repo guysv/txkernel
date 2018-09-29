@@ -32,6 +32,12 @@ class KernelBase(object):
 
         self.zmq_factory = txzmq.ZmqFactory()
         self.zmq_factory.registerForShutdown()
+
+        # Shutdown related variables
+        self.stop_deferred = defer.Deferred()
+        self.did_user_shutdown = False
+        self.shutdown_bcast = None
+
         self.execution_count = 0
         
         transport = self.connection_props["transport"]
@@ -69,11 +75,14 @@ class KernelBase(object):
         self.send_update("status", {'execution_state': 'starting'})
 
     def run(self):
-        self.stop_deferred = defer.Deferred()
         @defer.inlineCallbacks
         def do_init(reactor):
             self.send_update("status", {'execution_state': 'idle'})
             val = yield self.stop_deferred
+            if not self.did_user_shutdown:
+                yield self.do_shutdown()
+            if self.shutdown_bcast:
+                self.iopub_sock.publish(self.shutdown_bcast)
             defer.returnValue(val)
 
         task.react(do_init)
@@ -96,11 +105,20 @@ class KernelBase(object):
                 
                 # TODO: currently we can't stop on error, so no way
                 # to handle that..
-                msg['content'].pop('stop_on_error', None)
+                msg['content'].pop('stop_on_error')
                 content = yield self.do_execute(**msg['content'])
             elif msg_type == 'is_complete_request':
                 resp_type = "is_complete_reply"
                 content = yield self.do_is_complete(**msg['content'])
+            elif msg_type == 'shutdown_request':
+                resp_type = 'shutdown_reply'
+
+                self.did_user_shutdown = True
+                content = yield self.do_shutdown(**msg['content'])
+                self.shutdown_bcast =\
+                    self.message_manager.build('shutdown_reply', content,
+                                               msg['header'])
+                self.signal_stop()
             else:
                 self.log.warn("Unknown request type {req_type}",
                                req_type=msg_type)
@@ -131,6 +149,9 @@ class KernelBase(object):
 
     def do_is_complete(self, code):
         raise NotImplementedError
+    
+    def do_shutdown(self, restart=False):
+        return {'restart': restart}
 
     def send_update(self, msg_type, content):
         msg = self.message_manager.build(msg_type, content)
