@@ -114,6 +114,9 @@ class KernelBase(object):
                     self.message_manager.build('shutdown_reply', content,
                                                msg['header'])
                 self.signal_stop()
+            elif msg_type == 'interrupt_request':
+                resp_type = 'interrupt_reply'
+                content = yield self.do_interrupt(**msg['content'])
             else:
                 self.log.warn("Unknown request type {req_type}",
                                req_type=msg_type)
@@ -147,6 +150,9 @@ class KernelBase(object):
 
     def do_shutdown(self, restart=False):
         return {'restart': restart}
+
+    def do_interrupt(self):
+        return {}
 
     def send_update(self, msg_type, content):
         msg = self.message_manager.build(msg_type, content)
