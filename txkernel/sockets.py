@@ -13,7 +13,6 @@ The sockets provide a simple API for the
 kernel to communicate with the frontend
 """
 import txzmq
-from twisted.internet import defer
 
 class HearbeatConnection(txzmq.ZmqREPConnection):
     def gotMessage(self, messageId, *messageParts):
@@ -22,7 +21,7 @@ class HearbeatConnection(txzmq.ZmqREPConnection):
 class ShellConnection(txzmq.ZmqRouterConnection):
     def __init__(self, message_handler, *args, **kwargs):
         self.message_handler = message_handler
-        super().__init__(*args, **kwargs)
+        super(ShellConnection, self).__init__(*args, **kwargs)
     
     def gotMessage(self, sender_id, *messageParts):
         self.message_handler(self, sender_id, messageParts)
