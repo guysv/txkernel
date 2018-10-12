@@ -106,6 +106,9 @@ class KernelBase(object):
             elif msg_type == 'is_complete_request':
                 resp_type = "is_complete_reply"
                 content = yield self.do_is_complete(**msg['content'])
+            elif msg_type == 'complete_request':
+                resp_type = 'complete_reply'
+                content = yield self.do_complete(**msg['content'])
             elif msg_type == 'shutdown_request':
                 resp_type = 'shutdown_reply'
 
@@ -147,6 +150,15 @@ class KernelBase(object):
 
     def do_is_complete(self, code):
         raise NotImplementedError
+    
+    def do_complete(self, code, cursor_pos):
+        return {
+            'matches': [],
+            'cursor_start':0,
+            'cursor_end':0,
+            'metadata':{},
+            'status': 'ok'
+        }
 
     def do_shutdown(self, restart=False):
         return {'restart': restart}
