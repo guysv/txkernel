@@ -101,6 +101,7 @@ class KernelBase(object):
                 
                 # TODO: currently we can't stop on error, so no way
                 # to handle that..
+                self.send_update("execute_input", {'code': msg['content']['code'], 'execution_count': self.execution_count})
                 msg['content'].pop('stop_on_error', None)
                 content = yield self.do_execute(**msg['content'])
             elif msg_type == 'is_complete_request':
