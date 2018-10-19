@@ -110,6 +110,9 @@ class KernelBase(object):
             elif msg_type == 'complete_request':
                 resp_type = 'complete_reply'
                 content = yield self.do_complete(**msg['content'])
+            elif msg_type == 'inspect_request':
+                resp_type = 'inspect_reply'
+                content = yield self.do_inspect(**msg['content'])
             elif msg_type == 'shutdown_request':
                 resp_type = 'shutdown_reply'
 
@@ -159,6 +162,14 @@ class KernelBase(object):
             'cursor_end':0,
             'metadata':{},
             'status': 'ok'
+        }
+    
+    def do_inspect(self, code, cursor_pos, detail_level=1):
+        return {
+            'status': 'ok',
+            'found': False,
+            'data': {},
+            'metadata': {}
         }
 
     def do_shutdown(self, restart=False):
