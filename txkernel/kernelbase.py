@@ -86,11 +86,11 @@ class KernelBase(object):
     @defer.inlineCallbacks
     def handle_message(self, request_socket, sender_id, message_parts):
         try:
-            self.send_update("status", {'execution_state': 'busy'})
-
             # extra ids? probebly will never be used
             # TODO: catch parsing errors
             msg, _ = self.message_manager.parse(message_parts)
+
+            self.send_update("status", {'execution_state': 'busy'}, msg['header'])
 
             msg_type = msg['header']['msg_type']
             if msg_type == 'kernel_info_request':
@@ -127,13 +127,14 @@ class KernelBase(object):
             else:
                 self.log.warn("Unknown request type {req_type}",
                                req_type=msg_type)
+                self.send_update("status", {'execution_state': 'idle'}, msg['header'])
                 defer.returnValue(None)
             
             msg_bin = self.message_manager.build(resp_type, content,
                                                 msg['header'])
             request_socket.sendMultipart(sender_id, msg_bin)
 
-            self.send_update("status", {'execution_state': 'idle'})
+            self.send_update("status", {'execution_state': 'idle'}, msg['header'])
         except Exception:
             self.log.failure("Uncought exception in message handler")
             self.signal_stop()
@@ -178,8 +179,8 @@ class KernelBase(object):
     def do_interrupt(self):
         return {}
 
-    def send_update(self, msg_type, content):
-        msg = self.message_manager.build(msg_type, content)
+    def send_update(self, msg_type, content, parent=None, metadata=None):
+        msg = self.message_manager.build(msg_type, content, parent, metadata)
         self.iopub_sock.publish(msg)
     
     def signal_stop(self):
