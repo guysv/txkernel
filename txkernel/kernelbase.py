@@ -35,6 +35,12 @@ class KernelBase(object):
         self.execution_count = 0
         self.shutdown_bcast = None
         self.stop_deferred = defer.Deferred()
+
+        # HACK: Instead of a handler object and setting up a parent for
+        # each request, We use a global parent.
+        # Obviously this breaks some edge cases, but I don't see why we
+        # should care concidering the early stage of the project
+        self.curr_parent = None
         
         transport = self.connection_props["transport"]
         addr = self.connection_props["ip"]
@@ -90,7 +96,9 @@ class KernelBase(object):
             # TODO: catch parsing errors
             msg, _ = self.message_manager.parse(message_parts)
 
-            self.send_update("status", {'execution_state': 'busy'}, msg['header'])
+            self.curr_parent = msg['header']
+
+            self.send_update("status", {'execution_state': 'busy'})
 
             msg_type = msg['header']['msg_type']
             if msg_type == 'kernel_info_request':
@@ -101,7 +109,9 @@ class KernelBase(object):
                 
                 # TODO: currently we can't stop on error, so no way
                 # to handle that..
-                self.send_update("execute_input", {'code': msg['content']['code'], 'execution_count': self.execution_count})
+                self.send_update("execute_input",
+                                 {'code': msg['content']['code'],
+                                 'execution_count': self.execution_count})
                 msg['content'].pop('stop_on_error', None)
                 content = yield self.do_execute(**msg['content'])
             elif msg_type == 'is_complete_request':
@@ -127,17 +137,16 @@ class KernelBase(object):
             else:
                 self.log.warn("Unknown request type {req_type}",
                                req_type=msg_type)
-                self.send_update("status", {'execution_state': 'idle'}, msg['header'])
                 defer.returnValue(None)
             
             msg_bin = self.message_manager.build(resp_type, content,
                                                 msg['header'])
             request_socket.sendMultipart(sender_id, msg_bin)
-
-            self.send_update("status", {'execution_state': 'idle'}, msg['header'])
         except Exception:
             self.log.failure("Uncought exception in message handler")
             self.signal_stop()
+        finally:
+            self.send_update("status", {'execution_state': 'idle'})
 
     def do_kernel_info(self):
         return {
@@ -179,8 +188,8 @@ class KernelBase(object):
     def do_interrupt(self):
         return {}
 
-    def send_update(self, msg_type, content, parent=None, metadata=None):
-        msg = self.message_manager.build(msg_type, content, parent, metadata)
+    def send_update(self, msg_type, content):
+        msg = self.message_manager.build(msg_type, content, self.curr_parent)
         self.iopub_sock.publish(msg)
     
     def signal_stop(self):
