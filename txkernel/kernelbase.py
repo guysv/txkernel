@@ -106,14 +106,22 @@ class KernelBase(object):
                 content = yield self.do_kernel_info(**msg['content'])
             elif msg_type == 'execute_request':
                 resp_type = "execute_reply"
-                
-                # TODO: currently we can't stop on error, so no way
-                # to handle that..
+
                 self.send_update("execute_input",
                                  {'code': msg['content']['code'],
                                  'execution_count': self.execution_count})
-                msg['content'].pop('stop_on_error', None)
-                content = yield self.do_execute(**msg['content'])
+                if msg['content']['code'].endswith("?"):
+                    # Altough inspection requests exist, frontends does not
+                    # seem to send them. Instead, the kernel is in charge of
+                    # deciding when to return an inspection. When this happens,
+                    # the inpspection output is returned via the _deprecated_
+                    # payload feature
+                    content = yield self._inspect_proxy(msg['content']['code'])
+                else:                    
+                    # TODO: currently we can't stop on error, so no way
+                    # to handle that..
+                    msg['content'].pop('stop_on_error', None)
+                    content = yield self.do_execute(**msg['content'])
             elif msg_type == 'is_complete_request':
                 resp_type = "is_complete_reply"
                 content = yield self.do_is_complete(**msg['content'])
@@ -173,6 +181,31 @@ class KernelBase(object):
             'metadata':{},
             'status': 'ok'
         }
+    
+    @defer.inlineCallbacks
+    def _inspect_proxy(self, code):
+        stripped_code = code.rstrip("?")
+        cursor_pos = len(stripped_code)
+        detail_level = min(1, len(code) - len(stripped_code) - 1)
+        inspect_content = yield self.do_inspect(stripped_code, cursor_pos,
+                                                detail_level)
+        
+        response = {
+            'status': 'ok',
+            # The base class increments the execution count
+            'execution_count': self.execution_count,
+            'payload': [],
+            'user_expressions': {},
+        }
+
+        if inspect_content['found']:
+            response['payload'].append({
+                'source': 'page',
+                'data': inspect_content['data'],
+                'start': 0
+            })
+        
+        defer.returnValue(response)
     
     def do_inspect(self, code, cursor_pos, detail_level=1):
         return {
