@@ -56,8 +56,8 @@ class MessageManager(object):
             for serialized_dict in (header, parent, metadata,
                                     content):
                 d.update(serialized_dict)
-            if not hmac.compare_digest(d.hexdigest().decode("ascii"),
-                                       hmac_sign.decode("ascii")):
+            if not hmac.compare_digest(d.hexdigest().encode("ascii"),
+                                       hmac_sign):
                 raise SignatureException("Failed to authenticate message")
         
         msg = {
