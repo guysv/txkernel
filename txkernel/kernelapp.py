@@ -40,14 +40,19 @@ class KernelApp(object):
         'critical': LogLevel.critical
     }
     def __init__(self, kernel_cls, *extra_kernel_args, **extra_kernel_kwargs):
+        self.kernel_cls = kernel_cls
+        self.extra_kernel_args = extra_kernel_args
+        self.extra_kernel_kwargs = extra_kernel_kwargs
 
-        parser = argparse.ArgumentParser()
-        parser.add_argument('-c', '--connection-file',
-                            help="Path to existing connection file")
-        parser.add_argument('-l', '--log-level', default="error", const="info",
-                            nargs="?", choices=self._NAME_TO_LEVEL.keys(),
-                            help="Show only certain logs")
-        cli_args = parser.parse_args()
+        self.parser = argparse.ArgumentParser()
+        self.parser.add_argument('-c', '--connection-file',
+                                 help="Path to existing connection file")
+        self.parser.add_argument('-l', '--log-level', default="error", const="info",
+                                 nargs="?", choices=self._NAME_TO_LEVEL.keys(),
+                                 help="Show only certain logs")
+    
+    def run(self):
+        cli_args = self.parser.parse_args()
         
         # wow twisted log api sucks bigtime
         # all this mess just to set global log level
@@ -67,9 +72,9 @@ class KernelApp(object):
             connection_file = ConnectionFile.generate()
             write_connection_file = True
 
-        self.kernel = kernel_cls(connection_file.connection_props,
-                                 *extra_kernel_args,
-                                 **extra_kernel_kwargs)
+        self.kernel = self.kernel_cls(connection_file.connection_props,
+                                      *self.extra_kernel_args,
+                                      **self.extra_kernel_kwargs)
 
         if write_connection_file:
             # Fix socket ports
@@ -84,8 +89,7 @@ class KernelApp(object):
             hint = """To connect another client to this kernel, use:
         --existing {}""".format(path.basename(connection_file_path))
             print(hint)
-    
-    def run(self):
+        
         return self.kernel.run()
 
     @staticmethod
