@@ -236,7 +236,7 @@ class KernelBase(object):
         pass
 
     def on_stop(self):
-        print("test")
+        pass
 
     @staticmethod
     def _endpoint(transport, addr, port,
