@@ -23,7 +23,7 @@ class KernelBase(object):
 
     log = Logger()
 
-    def __init__(self, connection_props):
+    def __init__(self, connection_props, *args, **kwargs):
         self.connection_props = connection_props
 
         sign_scheme = self.connection_props["signature_scheme"]

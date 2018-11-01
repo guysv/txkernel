@@ -52,11 +52,11 @@ class KernelApp(object):
                                  help="Show only certain logs")
     
     def run(self):
-        cli_args = self.parser.parse_args()
+        cli_args = vars(self.parser.parse_args())
         
         # wow twisted log api sucks bigtime
         # all this mess just to set global log level
-        filter_level = self._NAME_TO_LEVEL[cli_args.log_level]
+        filter_level = self._NAME_TO_LEVEL[cli_args.pop("log_level")]
         log_filter =\
             lambda e: PredicateResult.yes if e['log_level'] >= filter_level\
                       else PredicateResult.no
@@ -64,13 +64,15 @@ class KernelApp(object):
                                         [log_filter])
         globalLogBeginner.beginLoggingTo([observer], redirectStandardIO=False)
 
-        if cli_args.connection_file:
+        if cli_args.get("connection_file"):
             connection_file =\
-                ConnectionFile.from_existing(cli_args.connection_file)
+                ConnectionFile.from_existing(cli_args.pop("connection_file"))
             write_connection_file = False
         else:
             connection_file = ConnectionFile.generate()
             write_connection_file = True
+        
+        self.extra_kernel_kwargs.update(cli_args)
 
         self.kernel = self.kernel_cls(connection_file.connection_props,
                                       *self.extra_kernel_args,
