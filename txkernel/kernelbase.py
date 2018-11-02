@@ -6,7 +6,7 @@
 # for full license details.
 
 import txzmq
-from twisted.internet import reactor, defer, task
+from twisted.internet import defer
 from twisted.logger import Logger
 from . import sockets, message
 
@@ -23,7 +23,10 @@ class KernelBase(object):
 
     log = Logger()
 
-    def __init__(self, connection_props, *args, **kwargs):
+    def __init__(self, connection_props, reactor=None, *args, **kwargs):
+        if not reactor:
+            from twisted.internet import reactor
+        self.reactor = reactor
         self.connection_props = connection_props
 
         sign_scheme = self.connection_props["signature_scheme"]
@@ -73,21 +76,18 @@ class KernelBase(object):
                                      self.connection_props["hb_port"])
         self.hb_sock = sockets.HearbeatConnection(self.zmq_factory,
                                                   hb_endpoint)
-        
-        self.send_update("status", {'execution_state': 'starting'})
 
+    @defer.inlineCallbacks
     def run(self):
-        @defer.inlineCallbacks
-        def do_init(reactor):
-            reactor.addSystemEventTrigger('before', 'startup', self.on_start)
-            reactor.addSystemEventTrigger('after', 'shutdown', self.on_stop)
-            self.send_update("status", {'execution_state': 'idle'})
-            val = yield self.stop_deferred
-            if self.shutdown_bcast:
-                self.iopub_sock.publish(self.shutdown_bcast)
-            defer.returnValue(val)
-
-        task.react(do_init)
+        self.send_update("status", {'execution_state': 'starting'})
+        yield self.do_startup()
+        # pylint: disable=maybe-no-member
+        self.reactor.addSystemEventTrigger('after', 'shutdown', self.do_shutdown)
+        self.send_update("status", {'execution_state': 'idle'})
+        val = yield self.stop_deferred
+        if self.shutdown_bcast:
+            self.iopub_sock.publish(self.shutdown_bcast)
+        defer.returnValue(val)
 
     @defer.inlineCallbacks
     def handle_message(self, request_socket, sender_id, message_parts):
@@ -134,7 +134,7 @@ class KernelBase(object):
             elif msg_type == 'shutdown_request':
                 resp_type = 'shutdown_reply'
 
-                content = yield self.do_shutdown(**msg['content'])
+                content = {'restart': msg['content']['restart']}
                 self.shutdown_bcast =\
                     self.message_manager.build('shutdown_reply', content,
                                                msg['header'])
@@ -214,9 +214,12 @@ class KernelBase(object):
             'data': {},
             'metadata': {}
         }
+    
+    def do_startup(self):
+        pass
 
     def do_shutdown(self, restart=False):
-        return {'restart': restart}
+        pass
 
     def do_interrupt(self):
         return {}
@@ -231,12 +234,6 @@ class KernelBase(object):
         # attempts
         if not self.stop_deferred.called:
             self.stop_deferred.callback(None)
-
-    def on_start(self):
-        pass
-
-    def on_stop(self):
-        pass
 
     @staticmethod
     def _endpoint(transport, addr, port,

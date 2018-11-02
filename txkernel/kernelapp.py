@@ -27,6 +27,7 @@ try:
 except ImportError:
     from urlparse import urlparse
 import zmq
+from twisted.internet import task
 from twisted.logger import globalLogBeginner, FilteringLogObserver, \
                            textFileLogObserver, LogLevel, PredicateResult
 from .connection import ConnectionFile
@@ -92,8 +93,9 @@ class KernelApp(object):
         --existing {}""".format(path.basename(connection_file_path))
             print(hint)
         
-        return self.kernel.run()
+        return task.react(lambda r: self.kernel.run())
 
     @staticmethod
     def _get_socket_port(socket):
+        # pylint: disable=maybe-no-member
         return urlparse(socket.socket.getsockopt(zmq.LAST_ENDPOINT)).port
