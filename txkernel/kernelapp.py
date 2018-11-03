@@ -21,6 +21,7 @@ returned to the user for frontend connections.
 """
 import sys
 import argparse
+import os
 from os import path
 try:
     from urllib.parse import urlparse
@@ -40,6 +41,9 @@ class KernelApp(object):
         'error': LogLevel.error,
         'critical': LogLevel.critical
     }
+
+    ENV_VAR_PREFIX = "TXKERNEL_"
+
     def __init__(self, kernel_cls, *extra_kernel_args, **extra_kernel_kwargs):
         self.kernel_cls = kernel_cls
         self.extra_kernel_args = extra_kernel_args
@@ -48,8 +52,11 @@ class KernelApp(object):
         self.parser = argparse.ArgumentParser()
         self.parser.add_argument('-c', '--connection-file',
                                  help="Path to existing connection file")
-        self.parser.add_argument('-l', '--log-level', default="error", const="info",
-                                 nargs="?", choices=self._NAME_TO_LEVEL.keys(),
+        self.parser.add_argument('-l', '--log-level',
+                                 default=self._get_default('LOG_LEVEL',
+                                                           'info'),
+                                 const="info", nargs="?",
+                                 choices=self._NAME_TO_LEVEL.keys(),
                                  help="Show only certain logs")
     
     def run(self):
@@ -94,6 +101,9 @@ class KernelApp(object):
             print(hint)
         
         return task.react(lambda r: self.kernel.run())
+    
+    def _get_default(self, env_var_name, default):
+        return os.environ.get(self.ENV_VAR_PREFIX + env_var_name, default)
 
     @staticmethod
     def _get_socket_port(socket):
