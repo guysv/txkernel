@@ -52,8 +52,8 @@ class KernelApp(object):
         self.parser = argparse.ArgumentParser()
         self.parser.add_argument('-l', '--log-level',
                                  default=self._get_default('LOG_LEVEL',
-                                                           'info'),
-                                 const="info", nargs="?",
+                                                           'warn'),
+                                 metavar="LEVEL",
                                  choices=self._NAME_TO_LEVEL.keys(),
                                  help="Show only certain logs")
     

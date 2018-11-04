@@ -81,10 +81,9 @@ class KernelBase(object):
     def run(self):
         self.send_update("status", {'execution_state': 'starting'})
         yield self.do_startup()
-        # pylint: disable=maybe-no-member
-        self.reactor.addSystemEventTrigger('after', 'shutdown', self.do_shutdown)
         self.send_update("status", {'execution_state': 'idle'})
         val = yield self.stop_deferred
+        yield self.do_shutdown()
         if self.shutdown_bcast:
             self.iopub_sock.publish(self.shutdown_bcast)
         defer.returnValue(val)
