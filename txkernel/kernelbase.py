@@ -143,7 +143,7 @@ class KernelBase(object):
                 resp_type = 'interrupt_reply'
                 content = yield self.do_interrupt(**msg['content'])
             else:
-                self.log.warn("Unknown request type {req_type}",
+                self.log.info("No handler for request of type {req_type}",
                                req_type=msg_type)
                 defer.returnValue(None)
             
