@@ -50,8 +50,6 @@ class KernelApp(object):
         self.extra_kernel_kwargs = extra_kernel_kwargs
 
         self.parser = argparse.ArgumentParser()
-        self.parser.add_argument('-c', '--connection-file',
-                                 help="Path to existing connection file")
         self.parser.add_argument('-l', '--log-level',
                                  default=self._get_default('LOG_LEVEL',
                                                            'info'),
@@ -60,6 +58,9 @@ class KernelApp(object):
                                  help="Show only certain logs")
     
     def run(self):
+        # separated from other options to give subclasses a chance to override
+        self.parser.add_argument('-c', '--connection-file',
+                            help="Path to existing connection file")
         cli_args = vars(self.parser.parse_args())
         
         # wow twisted log api sucks bigtime
