@@ -1,5 +1,5 @@
 # Attention: Repo is Not Maintained
-At first I wanteed to separate the base classes of ILua because other projects could potentially benefit from them.
+At first I wanted to separate the base classes of ILua because other projects could potentially benefit from them.
 On second thought, this is pretty far fetched at the moment, and my life maintaining ILua will be easier if I merge txkernel into it. TXKernel still lives in ILua, so be sure to pay that repo a visit!
 
 # TXKernel
